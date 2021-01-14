@@ -22,4 +22,4 @@ dropletCounter.py contains two main functions (dropletCounter and plotData) and 
 Note: if no argument is passed, most recent tsv file is plotted
 
 **Output:**  
--png file with droplet data plotted in time.
+- png file with droplet data plotted in time.
