@@ -13,8 +13,8 @@ dropletCounter.py contains two main functions (dropletCounter and plotData) and 
 - newGif: if set to True a new gif file is generated of processed images. Slows down code considerably.
 
 **Output:**  
--tsv-file (YYYYMMDDHHMMSS.tsv) with date, time, frequency, droplets size
--optional: processed droplet images gif
+- tsv-file (YYYYMMDDHHMMSS.tsv) with date, time, frequency, droplets size
+- optional: processed droplet images gif
 
 ### plotData(fileName)  
 **Input:**
