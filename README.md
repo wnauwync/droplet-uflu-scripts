@@ -11,7 +11,8 @@ dropletCounter.py contains two main functions (dropletCounter and plotData) and 
 - directory: directory name containing the droplet images to be analyzed (syntax: YYYYMMDD_camerafps)
 - flowrate: flow rate (uL/hr) used during droplet production
 - newTxt: if set to True a new tsv file is generated. If false it will append to the most recent tsv file.
-- newGif: if set to True a new gif file is generated of processed images. Slows down code considerably.  
+- newGif: if set to True a new gif file is generated of processed images. Slows down code considerably.
+
 **Output:**  
 -tsv-file (YYYYMMDDHHMMSS.tsv) with date, time, frequency, droplets size
 -optional: processed droplet images gif
