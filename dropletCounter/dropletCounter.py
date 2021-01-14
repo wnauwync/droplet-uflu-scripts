@@ -39,30 +39,14 @@ from array2gif import write_gif
 # end time), amount of images to consider, 
 #flow rate in uL/hr
 
+#OUTPUT: Text file (dateTIME_freq) with frequency, droplet size, time of 
+#results display
 
 #Image capture guidelines: edge should be free of debris, channel geometry
 #should be visible for image processing to work
 #make sure channel geometry is parallel to camera frame
-
-#OUTPUT: Text file (dateTIME_freq) with frequency, droplet size, calculation time, time of 
-#results display
-#Each time you run, append results to text file
-
-#Maybe include graphics if more than two consequent datapoints?
 #Make sure first image has a droplet shown on it because it is used to 
 #determine initial parameters
-
-# os.chdir('C:\\Users\\wnauwync\\Desktop\\Repositories\\droplet-uflu-scripts\\'+
-#          'dropletCounter\\test')
-# directory = '20210112_36000'
-# thresh = 0.025
-
-#for all images
-#import image
-#alter 
-
-#if more than x points have white on edge then a droplet is on the edge
-#0.5 seconds to read 500 images of 132 * 126 pixels
 
 
 
@@ -331,21 +315,4 @@ def dropletCounter(directory,flowrate,newTxt,newGif=False):
     
     if newGif == True:
         write_gif(image_listRGB,'imageData/'+ str(date) + '_' + str(time)+'.gif',fps = 10)
-    
-    
-#TODO: detect edge and save in list
-#add droplet detection function
-#return textfile
         
-    
-    
-# for i in np.arange(len(image_list)):
-#     plt.imshow(image_list[i])
-#     plt.show()
-#     time.sleep(0.1)
-    
-    
-    
-    #problems:
-        #♦threshold value?? --> 0.03 atm but maybe not extrapolatable
-
