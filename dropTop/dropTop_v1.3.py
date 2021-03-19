@@ -62,26 +62,23 @@ class directorySelection:
         self.parent = parent
         self.parent.iconphoto(False, tk.PhotoImage(file='C:/Users/wnauwync/Pictures/splashingsweat.png'))
         self.parent.title('dropTop')
-        self.parent.geometry('500x215')
+        self.parent.geometry('400x215')
         
         #Create main frame and define lay-out of window  
-        #Lay-out is ugly looking atm
         self.frame = tk.Frame(self.parent)
         self.frame.grid(row = 0, column = 0, sticky = (tk.N, tk.E, tk.S, tk.W), padx = 10, pady = 10)
         self.frame2 = tk.Frame(self.parent)
-        self.frame2.grid(row = 1, column = 0, sticky = (tk.N, tk.E, tk.S, tk.W), padx = 117, pady = 5)
+        self.frame2.grid(row = 1, column = 0, sticky = (tk.N, tk.E, tk.S, tk.W), padx = 100, pady = 5)
         
         
         # Tkinter variables
         self.filename = tk.StringVar()
         self.statusLabel = tk.StringVar()
         self.parent.selectedDir_success = tk.BooleanVar()
-#        self.dirName = tk.StringVar()
         self.parent.selectedDir_success.set(False)
         self.parent.plotNumber = 0
-#        self.dirName.set('')
         
-        #Add interface objects
+        #Add UI elements
         tk.Label(self.frame, text = 'Working directory').grid (row = 0, column = 0, sticky = (tk.W, tk.E))
         tk.Button(self.frame, text = 'Select directory:   ', command = self.selectDir).grid (row = 0, column = 1, sticky = (tk.W, tk.E))
         tk.Button(self.frame2, text = 'Start analyzing', command = self.startAnalysis).grid(row = 0,column = 0)
@@ -109,12 +106,6 @@ class directorySelection:
         else:
             self.parameterWindow = parWindow(parent = self.parent, dirName = self.dirName)
   
-        
-  
-    
-  
-
-
 
 #######################################################
 #                                                     #
