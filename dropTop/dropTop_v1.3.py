@@ -440,17 +440,7 @@ class parWindow:
     
         image.astype(int)
         return image
-        
-    # def sobelNormalizer(self,image):
-    #     # 8-bit image, max = 255, min = 0
-    #     # 0 = black
-    #     # 255 = white
-    #     #sometimes artefacts cause sobelNormalizer to maximize only the artefact
-        
-    #     scaleFactor = 255/image[0:len(image)-5].max()
-    #     image = image*scaleFactor
-    #     image = image.astype(int)
-    #     return(image)
+
     def detectRipple(self,edgeImage):
         #images that get input are integer images with 0 and 255 values
         edgeImage = edgeImage>100
@@ -591,7 +581,7 @@ class analysisWindow:
         
         self.thisWindow = tk.Toplevel(self.parent)
         self.thisWindow.iconphoto(False, tk.PhotoImage(file='C:/Users/wnauwync/Pictures/splashingsweat.png'))
-        self.thisWindow.title('dropTop analysis:' + self.dirName)
+        self.thisWindow.title('dropTop analysis: ' + self.dirName)
         self.thisWindow.geometry('1000x860')
         
         
@@ -670,10 +660,7 @@ class analysisWindow:
         #Pack elements
         tk.Label(self.parameterFrame, text = 'Your favorite analysis parameters').pack()
         
-        
-        
-        
-        
+
         
         ##Plot frames
         
@@ -774,9 +761,9 @@ class analysisWindow:
     
         for i in matching:
             image = parWindow.processImage(self,i,'analysis',self.sigma,self.xmin,self.xmax,self.ymin,self.ymax)
-            dropletPass.append(self.detectEdge(image,self.ymin,self.edgemin,self.edgemax))
+            dropletPass.append(self.detectEdge(image))
             
-
+        print(dropletPass)
         newList = self.analyzePasses(dropletPass)
         #timePoints = timeData[dropletPass.index(False):dropletPass.index(False,len(dropletPass)-1)] #only select timepoins that are of importance for droplet counting
         dropStartTime = timeData[newList[0]]
@@ -834,19 +821,19 @@ class analysisWindow:
         
         dropStart = []
         dropStop = []
-        previousElement = False
-        start = passList.index(False)
+        previousElement = 0
+        start = passList.index(1)
         
-        #end = passList.index(False, len(passList)-1)
-        end = len(passList)-1-passList[::-1].index(False)
+        #[::-1] reverses a list!
+        end = len(passList)-1-passList[::-1].index(-1)
         
         for i in np.arange(start,end+1,1):
             
-            if passList[i] == True:
-                if previousElement == False:
+            if passList[i] == 1:
+                if previousElement == 0 or previousElement == -1:
                     dropStart.append(i)
-            if passList[i] == False:
-                if previousElement == True:
+            if passList[i] == -1:
+                if previousElement == 0 or previousElement == 1:
                     dropStop.append(i)
             previousElement = passList[i]
         
@@ -854,44 +841,73 @@ class analysisWindow:
         #filter out single or double frame droplets (false positives)
         #toRemove = []
         for i in np.arange(len(dropStart)):
-            delta = dropStop[i]-dropStart[i]        
-            if delta <= 3:
+            delta = dropStop[i]-dropStart[i]    
+            print(delta)
+            if delta <= 1:
                 dropStart[i] = False
                 dropStop[i] = False
-    
+            #except IndexError:
+            #    messagebox.showerror('Error','No droplets detected, try adjusting limits')
         dropStart = list(filter(None,dropStart))
         dropStop = list(filter(None,dropStop))
         
         #list with beginpoints of droplets
         #list with endpoints of droplets        
-        
         return [dropStart,dropStop]
     
     
-    def detectEdge(self,image,ymin,yminEdge,ymaxEdge):
+    def detectEdge(self,edgeImage):
+        #almost same as detectRipple, but introduced in this class under
+        #detectEdge
+        #0 == no edge visible in picture
+        #1 == front edge visible in picture
+        #-1 == back edge visible in picture
         
-        #scale detection zone
+        #edgeImage = edgeImage>100
+        #processed image with edges is read
+        edgeCur = 0
+        xwhereTrue = np.where(np.any(edgeImage,axis = 0) == True)[0]
+        if len(xwhereTrue>2):
+        #x axis (columns) used to determine
+            xfirstTrue = xwhereTrue[0]
+            xlastTrue = xwhereTrue[len(xwhereTrue)-1]
+            
+            firstTrue = np.where(edgeImage[:,xfirstTrue] == True)[0]
+            yfirstTrue = firstTrue[0]
+            
+            lastTrue = np.where(edgeImage[:,xlastTrue] == True)[0]
+            ylastTrue = lastTrue[0]
         
-        #image[self.edgeminVar.get()-self.yminVar.get():self.edgemaxVar.get()-self.yminVar.get(),image.shape[1]-1] = True
-
-        detectionZone = image[yminEdge-ymin:ymaxEdge-ymin,len(image[0])-2]
-    
-        if sum(detectionZone)>3:
-            return True
+        
+            if yfirstTrue < ylastTrue:
+                edgeCur = 1
+            elif yfirstTrue > ylastTrue:
+                edgeCur = -1
+            else:
+                #if equal indices are found there are probably double edges
+                #that are messing with the analysis, add in extra
+                #if statements to deal with these
+                if len(firstTrue)>1:
+                    yfirstTrue = firstTrue[len(firstTrue)-1]
+                    if yfirstTrue < ylastTrue:
+                        edgeCur = 1
+                    elif yfirstTrue > ylastTrue:
+                        edgeCur = -1
+                    else:
+                        edgeCur = 0
+                if len(lastTrue)>1:
+                    ylastTrue = lastTrue[len(lastTrue)-1]
+                    if yfirstTrue < ylastTrue:
+                        edgeCur = 1
+                    elif yfirstTrue > ylastTrue:
+                        edgeCur = -1
+                    else:
+                        edgeCur = 0
         else:
-            return False
+            edgeCur = 0
+            
+        return edgeCur
 
-    
-    def sobelNormalizer(self,image):
-        # 8-bit image, max = 255, min = 0
-        # 0 = black
-        # 255 = white
-        #sometimes artefacts cause sobelNormalizer to maximize only the artefact
-        
-        scaleFactor = 255/image[0:len(image)-5].max()
-        image = image*scaleFactor
-        image = image.astype(int)
-        return(image)
         
     def plotData(self,dataHolder):
         #plot data in foreseen canvases
@@ -970,4 +986,9 @@ root = tk.Tk()
 root.option_add('*tearOff', tk.FALSE)
 root.resizable(1, 1)
 GUI = directorySelection(root)
-root.mainloop()     
+root.mainloop()
+
+
+
+
+#passList =[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1]
