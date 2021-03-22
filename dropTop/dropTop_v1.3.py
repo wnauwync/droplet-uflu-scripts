@@ -28,7 +28,8 @@ import pandas as pd
 import numpy as np
 #import skimage as skm
 from skimage import io
-from skimage import filters
+from skimage import feature
+#from skimage import filters
 import matplotlib
 from matplotlib import pyplot as plt
 from math import floor, ceil
@@ -169,17 +170,24 @@ class parWindow:
         self.thisWindow.bind("<Right>", lambda x: self.forward())
 
         #GUI stuff
+        
+        #############
         ##Image frame
         self.imageFrame = tk.LabelFrame(self.thisWindow, text = 'Analysed images' )
         self.imageFrame.grid(row = 0, column = 0)
         
         #Define tkinter Variables
         self.imageAnalysisSuccess = tk.BooleanVar()
+        self.dropCurStatusVar = tk.StringVar()
+        
+        #Set tkinter variables
         self.imageAnalysisSuccess.set(False)
+        self.dropCurStatusVar.set('No analysis started')
         self.imagePosition = 0
         
-        #Image object
-        
+
+
+        #Plotting objects
         self.imageCanvas = tk.Label(self.imageFrame, image = self.myNewImage)
         self.yCanvas = tk.Canvas(self.imageFrame, bg = 'white', height = 400, width = 40)
         self.xCanvas = tk.Canvas(self.imageFrame, bg = 'white', height = 40, width = 500)
@@ -190,6 +198,9 @@ class parWindow:
         self.buttonRight = tk.Button(self.imageFrame,text = '>>', command = self.forward)
         self.buttonGo = tk.Button(self.imageFrame,text = 'Analyse data with these parameters', command = self.goToAnalysis)
         
+        #Labels
+        self.labelAnalysis= tk.Label(self.imageFrame,textvariable = self.dropCurStatusVar,font = ('Calibri',15))
+        
         #Pack elements
         self.imageCanvas.grid(row = 0, column = 0, columnspan = 4)
         self.yCanvas.grid(row = 0, column = 5)
@@ -197,15 +208,16 @@ class parWindow:
         self.buttonLeft.grid(row = 2, column = 0, columnspan = 1)
         self.buttonRight.grid(row = 2, column = 3, columnspan = 1)
         self.buttonGo.grid(row = 5,column = 1, columnspan = 2)
+        self.labelAnalysis.grid(row = 6,column = 0, columnspan = 5,sticky = (tk.W, tk.E))
         
         
-        
+        #############
         ##Parameter frame
         self.parameterFrame = tk.LabelFrame(self.thisWindow, text = "Parameters")
         self.parameterFrame.grid(row = 0, column = 1)
         
         #Define tkinter variables
-        self.hiThrVar = tk.IntVar()
+        self.sigmaVar = tk.IntVar()
         self.imageStartVar = tk.IntVar()
         self.imageStopVar = tk.IntVar()
         self.xminVar = tk.IntVar()
@@ -216,9 +228,9 @@ class parWindow:
         self.edgeminVar = tk.IntVar()
         
         #Set tkinter variables
-        self.hiThrVar.set(100)
+        self.sigmaVar.set(1)
         self.imageStartVar.set(100)
-        self.imageStopVar.set(150)
+        self.imageStopVar.set(200)
         self.imageList = os.listdir(self.dirName)[self.imageStartVar.get():self.imageStopVar.get()]
         
         self.imageyMax = io.imread(self.imageList[0]).shape[0]
@@ -230,11 +242,8 @@ class parWindow:
         self.edgemaxVar.set(self.imageyMax)
         self.edgeminVar.set(0)
         
-        
-        
-        
         #Entries
-        self.threshEntry = tk.Entry(self.parameterFrame,textvariable = self.hiThrVar)
+        self.sigmaEntry = tk.Entry(self.parameterFrame,textvariable = self.sigmaVar)
         self.xminEntry = tk.Entry(self.parameterFrame,textvariable = self.xminVar)
         self.xmaxEntry = tk.Entry(self.parameterFrame,textvariable = self.xmaxVar)
         self.yminEntry = tk.Entry(self.parameterFrame,textvariable = self.yminVar)
@@ -243,11 +252,10 @@ class parWindow:
         self.edgeminEntry = tk.Entry(self.parameterFrame,textvariable = self.edgeminVar)
         
         #Buttons
-
         self.drawAreaButton = tk.Button(self.parameterFrame,text = 'Draw area', command = self.refreshCanvas)
         self.drawEdgeButton = tk.Button(self.parameterFrame,text = 'Draw edge', command = self.refreshCanvas)
         self.pickRandom = tk.Button(self.parameterFrame,text = 'Select', command = self.pickDrops)
-        self.analyzeButton2 = tk.Button(self.parameterFrame, text = 'Process images', command = self.processImages)
+        self.analyzeButton2 = tk.Button(self.parameterFrame, text = 'Process images', command = self.processBatch)
         self.refreshButton = tk.Button(self.parameterFrame, text = 'Refresh', command = self.refreshGUI)
         
         #Pack elements and add labels
@@ -269,9 +277,9 @@ class parWindow:
         self.edgemaxEntry.grid(row = 5, column = 3)
         self.drawEdgeButton.grid(row = 6, column = 2, columnspan = 3, sticky = (tk.W, tk.E))
         
-        tk.Label(self.parameterFrame, text = 'Minimum brightness threshold:').grid(row = 7, column = 0,columnspan = 4, sticky = tk.W)
-        tk.Label(self.parameterFrame, text= 'Threshold:').grid(row = 8, column = 2)
-        self.threshEntry.grid(row = 8,column = 3)
+        tk.Label(self.parameterFrame, text = 'Set sigma for Canny Gaussian filter:').grid(row = 7, column = 0,columnspan = 4, sticky = tk.W)
+        tk.Label(self.parameterFrame, text= 'Sigma:').grid(row = 8, column = 2)
+        self.sigmaEntry.grid(row = 8,column = 3)
 
                 
         tk.Label(self.parameterFrame, text = 'Select different droplet sequence:').grid(row = 9, column = 0,columnspan = 4, sticky = tk.W)
@@ -325,10 +333,13 @@ class parWindow:
 
         if self.imageAnalysisSuccess.get() == True:
             self.myNewImage = Image.open(self.dirName + '/procImages/' + newImage + '.png')
+            self.myNewEdge = io.imread(self.dirName + '/procImages/' + newImage + '.png')
+            self.detectRipple(self.myNewEdge)
         elif self.imageAnalysisSuccess.get() == False:
             self.myNewImage = Image.open(self.dirName + '/'+ self.imageList[self.imagePosition])
             
         self.displayNewImage(self.myNewImage)
+
        
     def back(self):
         #get position from tkintervariable
@@ -346,6 +357,8 @@ class parWindow:
         
         if self.imageAnalysisSuccess.get() == True:
             self.myNewImage = Image.open(self.dirName + '/procImages/' + newImage + '.png')
+            self.myNewEdge = io.imread(self.dirName + '/procImages/' + newImage + '.png')
+            self.detectRipple(self.myNewEdge)
         elif self.imageAnalysisSuccess.get() == False:
             self.myNewImage = Image.open(self.dirName + '/' + self.imageList[self.imagePosition])
         
@@ -353,9 +366,8 @@ class parWindow:
         self.displayNewImage(self.myNewImage)
                    
             
-    def processImages(self):
+    def processBatch(self):
         #get images to be analyzed from tkintervariables
-        hiThr = self.hiThrVar.get()
         imageStart = self.imageStartVar.get()
         imageStop = self.imageStopVar.get()
         listFiles = os.listdir(self.dirName)[imageStart:imageStop]
@@ -371,7 +383,7 @@ class parWindow:
 
         
         for i in listFiles:
-            imageProcessed = self.processImage(i,'demo',hiThr,self.xminVar.get(),self.xmaxVar.get(),self.yminVar.get(),self.ymaxVar.get())
+            imageProcessed = self.processImage(i,'demo',self.sigmaVar.get(),self.xminVar.get(),self.xmaxVar.get(),self.yminVar.get(),self.ymaxVar.get())
             #if demo --> don't cut, replace by false
             #if not demo --> cut, don't replace by false
             name = i
@@ -397,27 +409,22 @@ class parWindow:
         
         randomStart = np.random.randint(0,len(os.listdir(self.dirName))-51)
         self.imageStartVar.set(randomStart)
-        self.imageStopVar.set(randomStart+50)
+        self.imageStopVar.set(randomStart+100)
         self.imageAnalysisSuccess.set(False)
         self.imageList = os.listdir(self.dirName)[self.imageStartVar.get():self.imageStopVar.get()]
         self.imagePosition = 0
         
         
-    def processImage(self,imageName,mode,hiThr,xmin,xmax,ymin,ymax):
-        #perform edge detection, thresholding and closing of objects
-        #add in region to be analyzed, add in edge to add from user input
+    def processImage(self,imageName,mode,sigmaInput,xmin,xmax,ymin,ymax):
+        #perform Canny edge detection with sigma input from user
         image = io.imread(imageName)
         
         xLen = image.shape[1]
         yLen = image.shape[0]
         
         image = image[ymin:ymax,xmin:xmax]
-        image = self.sobelNormalizer(filters.sobel(image))
-        image = image>hiThr
-
-        #set complete side of image to True for shape closing
-        image[:,image.shape[1]-1] = True
-        image = ndimage.binary_fill_holes(image)
+        image = feature.canny(image,sigma = sigmaInput)
+        
         
         if mode == 'demo':
             xminCut = np.zeros((image.shape[0],xmin),dtype = int)
@@ -430,20 +437,48 @@ class parWindow:
             image = np.append(image,ymaxCut,axis = 0)
             #imageOri = np.ones((200,150))
             #image = imageOri[ymin:ymax,xmin:xmax]
-        
+    
         image.astype(int)
         return image
-
-    def sobelNormalizer(self,image):
-        # 8-bit image, max = 255, min = 0
-        # 0 = black
-        # 255 = white
-        #sometimes artefacts cause sobelNormalizer to maximize only the artefact
         
-        scaleFactor = 255/image[0:len(image)-5].max()
-        image = image*scaleFactor
-        image = image.astype(int)
-        return(image)
+    # def sobelNormalizer(self,image):
+    #     # 8-bit image, max = 255, min = 0
+    #     # 0 = black
+    #     # 255 = white
+    #     #sometimes artefacts cause sobelNormalizer to maximize only the artefact
+        
+    #     scaleFactor = 255/image[0:len(image)-5].max()
+    #     image = image*scaleFactor
+    #     image = image.astype(int)
+    #     return(image)
+    def detectRipple(self,edgeImage):
+        #images that get input are integer images with 0 and 255 values
+        edgeImage = edgeImage>100
+        if self.imageAnalysisSuccess.get() == True:
+            #processed image with edges is read
+            xwhereTrue = np.where(np.any(edgeImage,axis = 0) == True)[0]
+            if len(xwhereTrue>2):
+            #x axis (columns) used to determine
+                xfirstTrue = xwhereTrue[0]
+                xlastTrue = xwhereTrue[len(xwhereTrue)-1]
+                
+                firstTrue = np.where(edgeImage[:,xfirstTrue] == True)[0]
+                yfirstTrue = firstTrue[len(firstTrue)-1]
+                
+                lastTrue = np.where(edgeImage[:,xlastTrue] == True)[0]
+                ylastTrue = lastTrue[len(lastTrue)-1]
+            
+            
+                if yfirstTrue <= ylastTrue:
+                    self.dropCurStatusVar.set('Start of droplet')
+                elif yfirstTrue > ylastTrue:
+                    self.dropCurStatusVar.set('End of droplet')
+            else:
+                self.dropCurStatusVar.set('No clear edge')
+        else:
+            self.dropCurStatusVar.set('No analysis started')
+
+                
     
     def refreshCanvas(self):
         #delete lines from canvas and draw new lines with newly entered lines
@@ -476,7 +511,7 @@ class parWindow:
         tempYmax = self.ymaxVar.get()
         tempEdgemin = self.edgeminVar.get()
         tempEdgemax = self.edgemaxVar.get()
-        tempThr = self.hiThrVar.get()
+        tempThr = self.sigmaVar.get()
         
         self.initGUI()
         
@@ -487,7 +522,7 @@ class parWindow:
         self.ymaxVar.set(tempYmax)
         self.edgeminVar.set(tempEdgemin)
         self.edgemaxVar.set(tempEdgemax)
-        self.hiThrVar.set(tempThr)
+        self.sigmaVar.set(tempThr)
         #draw lines again        
         self.refreshCanvas()
         
@@ -500,7 +535,7 @@ class parWindow:
         tempYmax = self.ymaxVar.get()
         tempEdgemin = self.edgeminVar.get()
         tempEdgemax = self.edgemaxVar.get()
-        tempThr = self.hiThrVar.get()
+        tempThr = self.sigmaVar.get()
         
         parameterList = [tempXmin,tempXmax,tempYmin,tempYmax,tempEdgemin,tempEdgemax,tempThr]
         self.analysisWindow = analysisWindow(parent = self.parent, dirName = self.dirName, parameters = parameterList )
@@ -532,7 +567,7 @@ class analysisWindow:
         self.ymax = self.parameterList[3]
         self.edgemin = self.parameterList[4]
         self.edgemax = self.parameterList[5]
-        self.hiThr = self.parameterList[6]
+        self.sigma = self.parameterList[6]
         
         self.thisWindow = tk.Toplevel(self.parent)
         self.thisWindow.iconphoto(False, tk.PhotoImage(file='C:/Users/wnauwync/Pictures/splashingsweat.png'))
@@ -718,11 +753,9 @@ class analysisWindow:
         dropletPass = [] #function performance
     
         for i in matching:
-            image = parWindow.processImage(self,i,'analysis',self.hiThr,self.xmin,self.xmax,self.ymin,self.ymax)
-            #print(self.detectEdge(image,self.edgemin,self.edgemax))
+            image = parWindow.processImage(self,i,'analysis',self.sigma,self.xmin,self.xmax,self.ymin,self.ymax)
             dropletPass.append(self.detectEdge(image,self.ymin,self.edgemin,self.edgemax))
             
-        #print(dropletPass)
 
         newList = self.analyzePasses(dropletPass)
         #timePoints = timeData[dropletPass.index(False):dropletPass.index(False,len(dropletPass)-1)] #only select timepoins that are of importance for droplet counting
