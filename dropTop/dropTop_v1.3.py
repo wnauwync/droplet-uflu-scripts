@@ -463,16 +463,36 @@ class parWindow:
                 xlastTrue = xwhereTrue[len(xwhereTrue)-1]
                 
                 firstTrue = np.where(edgeImage[:,xfirstTrue] == True)[0]
-                yfirstTrue = firstTrue[len(firstTrue)-1]
+                yfirstTrue = firstTrue[0]
                 
                 lastTrue = np.where(edgeImage[:,xlastTrue] == True)[0]
-                ylastTrue = lastTrue[len(lastTrue)-1]
+                ylastTrue = lastTrue[0]
             
             
-                if yfirstTrue <= ylastTrue:
+                if yfirstTrue < ylastTrue:
                     self.dropCurStatusVar.set('Start of droplet')
                 elif yfirstTrue > ylastTrue:
                     self.dropCurStatusVar.set('End of droplet')
+                else:
+                    #if equal indices are found there are probably double edges
+                    #that are messing with the analysis, add in extra
+                    #if statements to deal with these
+                    if len(firstTrue)>1:
+                        yfirstTrue = firstTrue[len(firstTrue)-1]
+                        if yfirstTrue < ylastTrue:
+                            self.dropCurStatusVar.set('Start of droplet')
+                        elif yfirstTrue > ylastTrue:
+                            self.dropCurStatusVar.set('End of droplet') 
+                        else:
+                            self.dropCurStatusVar.set('No clear edge')
+                    if len(lastTrue)>1:
+                        ylastTrue = lastTrue[len(lastTrue)-1]
+                        if yfirstTrue < ylastTrue:
+                            self.dropCurStatusVar.set('Start of droplet')
+                        elif yfirstTrue > ylastTrue:
+                            self.dropCurStatusVar.set('End of droplet') 
+                        else:
+                            self.dropCurStatusVar.set('No clear edge')
             else:
                 self.dropCurStatusVar.set('No clear edge')
         else:
