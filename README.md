@@ -1,6 +1,11 @@
 # droplet-uflu-scripts
 Droplet uflu analysis tools
 
+## DropTop GUI
+dropTop is a tkinter based GUI for image-based droplet analysis.
+Given a frame rate and a flow rate, it will derive the frequency of droplet generation (Hz), the droplet size (pL) and the interdroplet time (ms).
+
+
 
 ## Droplet Counter package
 dropletCounter.py contains two main functions (dropletCounter and plotData) and numerous helper functions.
