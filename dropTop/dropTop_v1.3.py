@@ -156,7 +156,7 @@ class parWindow:
     
     def initGUI(self):
         #add image
-        self.myNewImage = Image.open(os.listdir(self.dirName)[0])
+        self.myNewImage = Image.open(os.listdir(self.dirName)[10])
         self.myNewImage = self.myNewImage.resize((500,400), Image.ANTIALIAS)
         self.myNewImage = ImageTk.PhotoImage(self.myNewImage)        
         
@@ -229,8 +229,8 @@ class parWindow:
         
         #Set tkinter variables
         self.sigmaVar.set(1)
-        self.imageStartVar.set(100)
-        self.imageStopVar.set(200)
+        self.imageStartVar.set(10)
+        self.imageStopVar.set(210)
         self.imageList = os.listdir(self.dirName)[self.imageStartVar.get():self.imageStopVar.get()]
         
         self.imageyMax = io.imread(self.imageList[0]).shape[0]
@@ -389,7 +389,7 @@ class parWindow:
             name = i
             #save Images in directory processedImages (check if already there)
             imageProcessedNoExtension = name.split('.')[0]
-            io.imsave('procImages/'+imageProcessedNoExtension+'.png', imageProcessed.astype(int))
+            io.imsave('procImages/'+imageProcessedNoExtension+'.png', imageProcessed.astype(int),check_contrast = False)
         
         #Files are made and saved, now display first picture in canvas
         self.imagePosition = 0
@@ -407,9 +407,9 @@ class parWindow:
         
         #reset to
         
-        randomStart = np.random.randint(0,len(os.listdir(self.dirName))-51)
+        randomStart = np.random.randint(0,len(os.listdir(self.dirName))-201)
         self.imageStartVar.set(randomStart)
-        self.imageStopVar.set(randomStart+100)
+        self.imageStopVar.set(randomStart+200)
         self.imageAnalysisSuccess.set(False)
         self.imageList = os.listdir(self.dirName)[self.imageStartVar.get():self.imageStopVar.get()]
         self.imagePosition = 0
@@ -582,7 +582,7 @@ class analysisWindow:
         self.thisWindow = tk.Toplevel(self.parent)
         self.thisWindow.iconphoto(False, tk.PhotoImage(file='C:/Users/wnauwync/Pictures/splashingsweat.png'))
         self.thisWindow.title('dropTop analysis: ' + self.dirName)
-        self.thisWindow.geometry('1000x860')
+        self.thisWindow.geometry('1200x860')
         
         
         #Create tkinter variables
@@ -763,8 +763,9 @@ class analysisWindow:
             image = parWindow.processImage(self,i,'analysis',self.sigma,self.xmin,self.xmax,self.ymin,self.ymax)
             dropletPass.append(self.detectEdge(image))
             
+        passList = self.healVector(dropletPass)
         print(dropletPass)
-        newList = self.analyzePasses(dropletPass)
+        newList = self.analyzePasses(passList)
         #timePoints = timeData[dropletPass.index(False):dropletPass.index(False,len(dropletPass)-1)] #only select timepoins that are of importance for droplet counting
         dropStartTime = timeData[newList[0]]
         #print(dropStartTime)
@@ -807,7 +808,8 @@ class analysisWindow:
                                  'dropFreq_Hz': frequencyList,
                                  'dropVol_pL': dropVolume})
         analysisPerformance = pd.DataFrame({'time_ms': list(timeData + timeStart),
-                                            'dropPass': dropletPass})
+                                            'dropPass': dropletPass,
+                                            'dropProc': passList})
         
         
         
@@ -817,8 +819,7 @@ class analysisWindow:
         #Frequency first element = average of all droplets
         #Interdroplet distance last element = average of all droplets
         
-    def analyzePasses(self,passList): 
-        
+    def analyzePasses(self,passList):         
         dropStart = []
         dropStop = []
         previousElement = 0
@@ -826,6 +827,10 @@ class analysisWindow:
         
         #[::-1] reverses a list!
         end = len(passList)-1-passList[::-1].index(-1)
+        
+        
+        #include direct transitions between two edges but increases chance
+        #for false positive edge detection, remove this
         
         for i in np.arange(start,end+1,1):
             
@@ -837,24 +842,167 @@ class analysisWindow:
                     dropStop.append(i)
             previousElement = passList[i]
         
-        
-        #filter out single or double frame droplets (false positives)
-        #toRemove = []
-        for i in np.arange(len(dropStart)):
-            delta = dropStop[i]-dropStart[i]    
-            print(delta)
-            if delta <= 1:
-                dropStart[i] = False
-                dropStop[i] = False
-            #except IndexError:
-            #    messagebox.showerror('Error','No droplets detected, try adjusting limits')
-        dropStart = list(filter(None,dropStart))
-        dropStop = list(filter(None,dropStop))
-        
-        #list with beginpoints of droplets
-        #list with endpoints of droplets        
         return [dropStart,dropStop]
     
+    
+    
+
+        #zeroes are important separators
+        
+        #find islands of values
+        #take into account previous island, should be inverse
+        
+        #go through vector, island is starting from more than one value that
+        #is different from zero
+        
+        #store previous island
+        
+        
+        
+        #store all indices of elements that are non-zero
+        #remove all one length elements
+        #look at island, they should be the inverse of previous and
+        #next island
+        
+        #find a sequence of elements in the vector that does not show any
+        #hiccups (change from 1 to -1 or vice versa, a single one, a single
+        #minus one, a single zero)
+        #use this as a template to repair vector
+        
+        
+        
+        
+        #go through vector until first non-zero element is seen
+        #then, stop loop and go through the island until a different element is
+        #seen
+        #save length in list, save value in list
+        #if this element that stops the chain is != 0 and different from
+        #the current element --> change it to be equal to current island
+        #value
+        
+        
+        #reduce vector to pattern description, identify singlets and then
+        #weird transitions
+
+        
+        
+    def collapseVector(self,passList):        
+        i = 0
+        islandIDList = []
+        islandLengthList = []
+        islandLength = 1
+
+        
+        while i < len(passList)-1:
+            i = i + 1
+            curVal = passList[i]
+            preVal = passList[i-1]
+            islandID = preVal
+            
+            if curVal == preVal:
+                islandLength = islandLength + 1
+                islandID = curVal
+            else:
+                islandIDList.append(islandID)
+                islandLengthList.append(islandLength)
+                islandLength = 1
+        islandIDList.append(islandID)
+        islandLengthList.append(islandLength)
+            #function performs ok, last row of elements are ignored
+            
+        return [islandIDList,islandLengthList]
+
+    def extractVector(self,islandIDList,islandLengthList):
+        
+        passList = []
+        
+        if len(islandIDList) == len(islandLengthList):
+            for i in np.arange(len(islandIDList)):
+                elements = [islandIDList[i]] * islandLengthList[i]
+                passList.extend(elements)
+            return passList
+        
+        else:
+            messagebox.showerror('Error','Droplet data cannot be analyzed due to unexpected droplet pattern, alter sigma or region of analysis.')
+            return
+
+    def healVector(self,passList):
+        
+
+        #while there are still pattern mistakes found, perform iterative 
+        #vector healing
+        
+        #iterative process: 
+           # 0)find anchor of two or more matching patterns with no singlets
+           # 1)from there, go forward until no match, perform healing (alter based on pattern prediction)
+           # extractVector and collapse vector again
+           # 2) go to anchor, go forward until no match, perform healing, etc etc
+           
+           #do the same going back
+           
+           #return healedVector
+        #start from there
+        
+        
+        resultList = self.collapseVector(passList)
+        islandIDList = resultList[0]
+        islandLengthList = resultList[1]
+        
+        #0)correct singlets based on environment 
+        #(just convert to smallest island)
+        
+        
+        for i in np.arange(1,len(islandIDList)-1):
+            if islandLengthList[i] == 1:
+                #determine index through smallest neighbouring island
+                if islandLengthList[i+1] >= islandLengthList[i-1]:
+                    islandIDList[i] = islandIDList[i-1]
+                elif islandLengthList[i+1] < islandLengthList[i-1]:
+                    islandIDList[i] = islandIDList[i+1]
+                        
+        newPassList = self.extractVector(islandIDList,islandLengthList)
+        
+        resultList = self.collapseVector(newPassList)
+        islandIDList = resultList[0]
+        islandLengthList = resultList[1]
+        
+        #1) find anchorpoint
+        patternHeal = [0,-1,0,1] #data will always show this pattern
+
+        match = False
+        anchor = -1
+        
+        
+        while match == False and anchor < len(islandIDList)-13:
+            anchor = anchor + 1
+            
+            if islandIDList[anchor:anchor+12] == patternHeal * 3 and 1 not in islandLengthList[anchor:anchor+12]:
+                match = True
+        
+        if match == False:
+            messagebox.showerror('Error','Could not find an anchor point')
+        
+        count = 0
+        #keep adjusting until pattern is complete
+        for i in np.arange(1,len(islandIDList)-1):
+            index = (i - anchor - count) % 4
+            
+            if islandIDList[i] != patternHeal[index] and islandIDList[i] != 0:
+                count = count + 1
+                if islandIDList[i-1] == islandIDList[i+1]:
+                    islandIDList[i] = islandIDList[i-1]
+                elif islandLengthList[i+1] >= islandLengthList[i-1]:
+                    islandIDList[i] = islandIDList[i-1]
+                elif islandLengthList[i+1] < islandLengthList[i-1]:
+                    islandIDList[i] = islandIDList[i+1]
+                    
+                    
+                    
+        newPassList = self.extractVector(islandIDList,islandLengthList)
+
+        return newPassList
+
+        
     
     def detectEdge(self,edgeImage):
         #almost same as detectRipple, but introduced in this class under
@@ -923,23 +1071,27 @@ class analysisWindow:
         self.fig2 = plt.Figure(figsize = (8,2),dpi = 100)
         self.fig3 = plt.Figure(figsize = (8,2),dpi = 100)
         self.fig4 = plt.Figure(figsize = (8,2),dpi = 100)
+        self.fig5 = plt.Figure(figsize = (8,2),dpi = 100)
         
         if self.plotCounter > 0:
             self.figCanvas1.get_tk_widget().destroy()
             self.figCanvas2.get_tk_widget().destroy()
             self.figCanvas3.get_tk_widget().destroy()
             self.figCanvas4.get_tk_widget().destroy()
+            self.figCanvas5.get_tk_widget().destroy()
             
             
         self.figCanvas1 = FigureCanvasTkAgg(self.fig1,master = self.plotFrame)
         self.figCanvas2 = FigureCanvasTkAgg(self.fig2,master = self.plotFrame)
         self.figCanvas3 = FigureCanvasTkAgg(self.fig3,master = self.plotFrame)
         self.figCanvas4 = FigureCanvasTkAgg(self.fig4,master = self.plotFrame)
+        self.figCanvas5 = FigureCanvasTkAgg(self.fig5,master = self.plotFrame)
 
         self.figCanvas1.get_tk_widget().pack(side = tk.TOP, fill = tk.BOTH, expand = 1)
         self.figCanvas2.get_tk_widget().pack(side = tk.TOP, fill = tk.BOTH, expand = 1)
         self.figCanvas3.get_tk_widget().pack(side = tk.TOP, fill = tk.BOTH, expand = 1)    
         self.figCanvas4.get_tk_widget().pack(side = tk.TOP, fill = tk.BOTH, expand = 1)
+        self.figCanvas5.get_tk_widget().pack(side = tk.TOP, fill = tk.BOTH, expand = 1)
                     
         self.ax1 = self.fig1.add_subplot(111)
         self.fig1.subplots_adjust(bottom=0.25)
@@ -949,7 +1101,8 @@ class analysisWindow:
         self.fig3.subplots_adjust(bottom=0.25)
         self.ax4 = self.fig4.add_subplot(111)
         self.fig4.subplots_adjust(bottom=0.25)
-
+        self.ax5 = self.fig5.add_subplot(111)
+        self.fig5.subplots_adjust(bottom=0.25)
 
         self.ax1.set_xlabel('Time (ms)')
         self.ax1.set_ylabel('Frequency (Hz)')
@@ -965,16 +1118,21 @@ class analysisWindow:
         self.ax4.set_xlabel('Time (ms)')
         self.ax4.set_ylabel('Function performance') 
 
+        self.ax5.set_xlabel('Time (ms)')
+        self.ax5.set_ylabel('Filtered function performance') 
 
         self.ax1.plot(data['dropStart_ms'],data['dropFreq_Hz'])
         self.ax2.plot(data['dropStart_ms'],data['dropVol_pL'])
         self.ax3.plot(data['dropStart_ms'],data['dropSpace_ms'])
         self.ax4.plot(performance['time_ms'],performance['dropPass'])
+        self.ax5.plot(performance['time_ms'],performance['dropProc'])
+
         
         self.figCanvas1.draw()
         self.figCanvas2.draw()
         self.figCanvas3.draw()
         self.figCanvas4.draw()        
+        self.figCanvas5.draw()        
 
 
 
@@ -991,4 +1149,49 @@ root.mainloop()
 
 
 
-#passList =[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1]
+# passList = [0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, -1, -1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, -1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, -1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, -1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, -1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, -1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, -1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0]
+
+# passList = [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+# passList = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+# passList = [-1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1]
+
+
+# # a = collapseVector(passList)[0]
+# # b = collapseVector(passList)[1]
+# # c = healVector(passList)[0]
+# d = healVector(passList)[1]
+# print(a)
+# print(b)
+# print(c)
+# print(d)
+
+#first passList multiple things are grouped together
+#try adding groups of larger length together
+#second passList is OK
+#third passList is OK
+
+
+#after adjustments --> first passList == OK
+#second passList okish, not the adjustments I would have made but ok
+
+
+
+# valueList = []
+# patternHeal = [0,-1,0,1]
+# index = patternHeal.index(b[0])-1
+
+# for i in np.arange(len(b)):
+#     index = (index + 1)%4
+#     comparison = b[i] == patternHeal[index]
+#     valueList.append(comparison)
+
+# print(valueList)
+
+
+
+
+
+
+
