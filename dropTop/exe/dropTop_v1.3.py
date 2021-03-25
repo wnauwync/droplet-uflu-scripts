@@ -63,15 +63,14 @@ class directorySelection:
     def __init__(self,parent,*args,**kwargs):
         self.parent = parent
         self.parent.iconphoto(False, tk.PhotoImage(file='C:/Users/wnauwync/Pictures/splashingsweat.png'))
-        self.parent.title('dropTop: directory selection')
+        self.parent.title('dropTop')
         self.parent.geometry('400x215')
-        self.dirName = ''
         
         #Create main frame and define lay-out of window  
-        self.frame = tk.LabelFrame(self.parent,text = 'Directory selection')
-        self.frame.grid(row = 0, column = 0, sticky = (tk.N, tk.E, tk.S, tk.W), padx = 5, pady = 5,ipadx = 92,ipady = 62)
-        # self.frame2 = tk.Frame(self.parent)
-        # self.frame2.grid(row = 1, column = 0, sticky = (tk.N, tk.E, tk.S, tk.W), padx = 100, pady = 5)
+        self.frame = tk.Frame(self.parent)
+        self.frame.grid(row = 0, column = 0, sticky = (tk.N, tk.E, tk.S, tk.W), padx = 10, pady = 10)
+        self.frame2 = tk.Frame(self.parent)
+        self.frame2.grid(row = 1, column = 0, sticky = (tk.N, tk.E, tk.S, tk.W), padx = 100, pady = 5)
         
         
         # Tkinter variables
@@ -82,11 +81,11 @@ class directorySelection:
         self.parent.plotNumber = 0
         
         #Add UI elements
-        tk.Label(self.frame, text = 'Working directory:  ').grid (row = 0, column = 0, sticky = (tk.W, tk.E))
-        tk.Button(self.frame, text = 'Select directory', command = self.selectDir).grid (row = 0, column = 1, sticky = (tk.W, tk.E))
-        tk.Button(self.frame, text = 'Start analyzing', command = self.startAnalysis).grid(row = 1,column = 1, sticky = (tk.W, tk.E), pady = 5)
-        self.succesDirLabel = tk.Label(self.frame, textvariable=self.statusLabel)
-        self.succesDirLabel.grid(row=1, column=0, sticky=(tk.W))
+        tk.Label(self.frame, text = 'Working directory').grid (row = 0, column = 0, sticky = (tk.W, tk.E))
+        tk.Button(self.frame, text = 'Select directory:   ', command = self.selectDir).grid (row = 0, column = 1, sticky = (tk.W, tk.E))
+        tk.Button(self.frame2, text = 'Start analyzing', command = self.startAnalysis).grid(row = 0,column = 0)
+        self.succesDirLabel = tk.Label(self.frame2, textvariable=self.statusLabel)
+        self.succesDirLabel.grid(row=0, column=1, sticky=(tk.W))
         self.succesDirLabel.grid_configure(padx = 10)
         
     
@@ -139,7 +138,7 @@ class parWindow:
 
         #Window lay out stuff
         self.thisWindow.title('dropTop: determine analysis parameters')
-        self.thisWindow.geometry('892x575')
+        self.thisWindow.geometry('892x525')
         
         #add basic key functionality
         self.thisWindow.bind("<Left>", lambda x: self.back())
@@ -574,18 +573,12 @@ class analysisWindow:
     def initGUI(self):
 
         self.plotCounter = -1
-
         
         #Create frame that holds UI for start of analysis
         #Pack frame as a starting point
         
         self.frameAnalysis = tk.LabelFrame(self.thisWindow,text = "Start analysis")
         self.frameAnalysis.grid(row = 0, column = 0)
-        
-        #Bind basic functionalities to window
-        self.thisWindow.bind("<Return>", lambda x: self.analyzeData())
-        
-        
         
         #Store certain elements in memory, pack others immediately
         
@@ -748,6 +741,7 @@ class analysisWindow:
         count = -1
         for i in entryElements:
             count += 1
+            print(count)
             if count%2 == 0:
                 files.append(i)
             else:
@@ -1054,11 +1048,9 @@ class analysisWindow:
         #plot data in foreseen canvases
         #interdroplet distance is appointed to a certain droplet in order to be able to add it to a pandas dataframe
         #Index      dropStart       dropStop      drop size (ms)      interdroplet distance (ms)   frequency(Hz)   Droplet size (pL)        
-        global dropDataglobal
         
-        dropData = dataHolder['dropData']
+        data = dataHolder['dropData']
         performance = dataHolder['performance']
-        dropDataglobal = dropData
         
         self.plotCounter = self.plotCounter + 1
         
@@ -1114,19 +1106,13 @@ class analysisWindow:
 
         self.ax5.set_xlabel('Time (ms)')
         self.ax5.set_ylabel('Filtered function performance') 
-        
-        
-        for i in np.arange(len(self.picBatches)):
-            selection = dropData[dropData['index']==str(i)]
-            self.ax1.plot('dropStart_ms','dropFreq_Hz',data = selection)
-            self.ax2.plot('dropStart_ms','dropVol_pL',data = selection)
-            self.ax3.plot('dropStart_ms','dropSpace_ms',data = selection)
 
-        
-        #self.ax1.plot(data['dropStart_ms'],data['dropFreq_Hz'],c = data['index'])
-
+        self.ax1.plot(data['dropStart_ms'],data['dropFreq_Hz'])
+        self.ax2.plot(data['dropStart_ms'],data['dropVol_pL'])
+        self.ax3.plot(data['dropStart_ms'],data['dropSpace_ms'])
         self.ax4.plot(performance['time_ms'],performance['dropPass'])
         self.ax5.plot(performance['time_ms'],performance['dropProc'])
+
         
         self.figCanvas1.draw()
         self.figCanvas2.draw()
@@ -1145,4 +1131,3 @@ root.option_add('*tearOff', tk.FALSE)
 root.resizable(1, 1)
 GUI = directorySelection(root)
 root.mainloop()
-
