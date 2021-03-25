@@ -113,32 +113,6 @@ class directorySelection:
 #####               Parameter window              #####
 #                                                     #
 #######################################################
-#Perform analysis on 100 random subsequent droplets to optimize image analysis
-#parameters
-#add enterpress --> analyze
-#add left and right key press
-#Add go to droplet analysis
-
-#initial values of image cut off and edge
-# analyze --> allow reset button to be clicked
-# reset --> show initial image and set success to false
-
-#IF analysis = FALSE --> show images of raw data (move back and forth as well)
-#The raw data should have the lines drawn on top
-#IF analysis = TRUE --> show images of processed data
-
-#change imageList depending on this value
-
-
-#define processing area of image (reduce Sobel filter artefacts)
-### add in entries for this: ABCD points of rectangle
-### add in refresh button to reset config to initial
-
-#define hitbox for droplet hits
-###Draw line on left or right side with settings configed by user
-
-## Add refresh button
-
 
 
 class parWindow:
@@ -165,10 +139,11 @@ class parWindow:
         self.thisWindow.title('dropTop: determine analysis parameters')
         self.thisWindow.geometry('1100x600')
         
-        #add basic key functions
+        #add basic key functionality
         self.thisWindow.bind("<Left>", lambda x: self.back())
         self.thisWindow.bind("<Right>", lambda x: self.forward())
-
+        self.thisWindow.bind("<Enter>", lambda x: self.refreshCanvas())
+        
         #GUI stuff
         
         #############
@@ -224,23 +199,21 @@ class parWindow:
         self.xmaxVar = tk.IntVar()
         self.yminVar = tk.IntVar()
         self.ymaxVar = tk.IntVar()
-        self.edgemaxVar = tk.IntVar()
-        self.edgeminVar = tk.IntVar()
+        self.nImagesVar = tk.IntVar()
+        self.nImagesVar.set(50)
         
         #Set tkinter variables
         self.sigmaVar.set(1)
         self.imageStartVar.set(10)
-        self.imageStopVar.set(210)
+        self.imageStopVar.set(self.imageStartVar.get()+self.nImagesVar.get())
         self.imageList = os.listdir(self.dirName)[self.imageStartVar.get():self.imageStopVar.get()]
-        
         self.imageyMax = io.imread(self.imageList[0]).shape[0]
         self.imagexMax = io.imread(self.imageList[0]).shape[1]
         self.xminVar.set(0)
         self.xmaxVar.set(self.imagexMax)
         self.yminVar.set(0)
         self.ymaxVar.set(self.imageyMax)
-        self.edgemaxVar.set(self.imageyMax)
-        self.edgeminVar.set(0)
+
         
         #Entries
         self.sigmaEntry = tk.Entry(self.parameterFrame,textvariable = self.sigmaVar)
@@ -248,12 +221,10 @@ class parWindow:
         self.xmaxEntry = tk.Entry(self.parameterFrame,textvariable = self.xmaxVar)
         self.yminEntry = tk.Entry(self.parameterFrame,textvariable = self.yminVar)
         self.ymaxEntry = tk.Entry(self.parameterFrame,textvariable = self.ymaxVar)
-        self.edgemaxEntry = tk.Entry(self.parameterFrame,textvariable = self.edgemaxVar)
-        self.edgeminEntry = tk.Entry(self.parameterFrame,textvariable = self.edgeminVar)
+        self.nImagesEntry = tk.Entry(self.parameterFrame,textvariable = self.nImagesVar)
         
         #Buttons
         self.drawAreaButton = tk.Button(self.parameterFrame,text = 'Draw area', command = self.refreshCanvas)
-        self.drawEdgeButton = tk.Button(self.parameterFrame,text = 'Draw edge', command = self.refreshCanvas)
         self.pickRandom = tk.Button(self.parameterFrame,text = 'Select', command = self.pickDrops)
         self.analyzeButton2 = tk.Button(self.parameterFrame, text = 'Process images', command = self.processBatch)
         self.refreshButton = tk.Button(self.parameterFrame, text = 'Refresh', command = self.refreshGUI)
@@ -270,12 +241,9 @@ class parWindow:
         tk.Label(self.parameterFrame,text = 'Ymax:').grid(row = 2, column = 2)
         self.ymaxEntry.grid(row = 2, column = 3)
         self.drawAreaButton.grid(row = 3, column = 2, columnspan = 3, sticky = (tk.W, tk.E))
-        tk.Label(self.parameterFrame,text = "Define edge for droplet detection:").grid(row = 4, column = 0, columnspan = 4, sticky = tk.W)
-        tk.Label(self.parameterFrame,text = 'Emin:').grid(row = 5, column = 0)
-        self.edgeminEntry.grid(row = 5, column = 1)        
-        tk.Label(self.parameterFrame,text = 'Emax:').grid(row = 5, column = 2)
-        self.edgemaxEntry.grid(row = 5, column = 3)
-        self.drawEdgeButton.grid(row = 6, column = 2, columnspan = 3, sticky = (tk.W, tk.E))
+        tk.Label(self.parameterFrame,text = "Define amount of droplets to show:").grid(row = 4, column = 0, columnspan = 4, sticky = tk.W)
+        tk.Label(self.parameterFrame,text = 'nDrops:').grid(row = 5, column = 2)
+        self.nImagesEntry.grid(row = 5, column = 3)
         
         tk.Label(self.parameterFrame, text = 'Set sigma for Canny Gaussian filter:').grid(row = 7, column = 0,columnspan = 4, sticky = tk.W)
         tk.Label(self.parameterFrame, text= 'Sigma:').grid(row = 8, column = 2)
@@ -296,8 +264,6 @@ class parWindow:
         self.yCanvas.create_line(0,floor(self.ymaxVar.get()/self.imageyMax*400),39,floor(self.ymaxVar.get()/self.imageyMax*400),width = 5,fill = "green")
         #Region lower in y-axis
         self.yCanvas.create_line(0,ceil(self.yminVar.get()/self.imageyMax*400),39,ceil(self.yminVar.get()/self.imageyMax*400),width = 5,fill = "red")
-        #Edge detection in y-axis
-        self.yCanvas.create_line(0,floor(self.edgemaxVar.get()/self.imageyMax*400),0,ceil(self.edgeminVar.get()/self.imageyMax*400),width = 10,fill = "blue")
         
         #Region lower in x-axis
         self.xCanvas.create_line(0,0,0,39, width = 5, fill = 'red')
@@ -318,7 +284,19 @@ class parWindow:
         self.imageCanvas = tk.Label(self.imageFrame,image = self.myNewImage)
         self.imageCanvas.grid(row = 0, column = 0, columnspan = 4)
     
-
+    def refreshImage(self,myNewImage):
+        
+        newImage = self.imageList[self.imagePosition].split('.')[0]
+        if self.imageAnalysisSuccess.get() == True:
+            self.myNewImage = Image.open(self.dirName + '/procImages/' + newImage + '.png')
+            self.myNewEdge = io.imread(self.dirName + '/procImages/' + newImage + '.png')
+            self.detectRipple(self.myNewEdge)
+        elif self.imageAnalysisSuccess.get() == False:
+            self.myNewImage = Image.open(self.dirName + '/' + self.imageList[self.imagePosition])
+        
+        self.displayNewImage(self.myNewImage)
+        
+        
     def forward(self):
         #get position from tkintervariable
         #set position again
@@ -409,10 +387,11 @@ class parWindow:
         
         randomStart = np.random.randint(0,len(os.listdir(self.dirName))-201)
         self.imageStartVar.set(randomStart)
-        self.imageStopVar.set(randomStart+200)
+        self.imageStopVar.set(randomStart+self.nImagesVar.get())
         self.imageAnalysisSuccess.set(False)
         self.imageList = os.listdir(self.dirName)[self.imageStartVar.get():self.imageStopVar.get()]
         self.imagePosition = 0
+        self.refreshImage(self.myNewImage)
         
         
     def processImage(self,imageName,mode,sigmaInput,xmin,xmax,ymin,ymax):
@@ -435,8 +414,7 @@ class parWindow:
             image = np.concatenate((yminCut,image),axis = 0)
             ymaxCut = np.zeros((yLen-ymax,image.shape[1]),dtype = int)
             image = np.append(image,ymaxCut,axis = 0)
-            #imageOri = np.ones((200,150))
-            #image = imageOri[ymin:ymax,xmin:xmax]
+
     
         image.astype(int)
         return image
@@ -492,7 +470,6 @@ class parWindow:
     
     def refreshCanvas(self):
         #delete lines from canvas and draw new lines with newly entered lines
-        #if self.imageAnalysisSuccess.get() == False:
         self.yCanvas.delete('all')
         self.xCanvas.delete('all')
         
@@ -501,10 +478,7 @@ class parWindow:
             self.yCanvas.create_line(0,ceil(self.yminVar.get()/self.imageyMax*400),39,ceil(self.yminVar.get()/self.imageyMax*400),width = 5,fill = "red")
         else:
             return
-        if self.edgeminVar.get()>=0 and self.edgemaxVar.get()<=self.imageyMax:
-            self.yCanvas.create_line(0,floor(self.edgemaxVar.get()/self.imageyMax*400),0,ceil(self.edgeminVar.get()/self.imageyMax*400),width = 10,fill = "blue")
-        else:
-            return            
+
         #Draw xcanvas
         if self.xmaxVar.get()<=self.imagexMax and self.xminVar.get()>=0:
             self.xCanvas.create_line(ceil(self.xminVar.get()/self.imagexMax*500),0,ceil(self.xminVar.get()/self.imagexMax*500),39, width = 5, fill = 'red')
@@ -519,20 +493,17 @@ class parWindow:
         tempXmax = self.xmaxVar.get()
         tempYmin = self.yminVar.get()
         tempYmax = self.ymaxVar.get()
-        tempEdgemin = self.edgeminVar.get()
-        tempEdgemax = self.edgemaxVar.get()
-        tempThr = self.sigmaVar.get()
+        tempnImagesVar = self.nImagesVar.get()
+        tempSigma = self.sigmaVar.get()
         
         self.initGUI()
-        
         #set variables again
         self.xminVar.set(tempXmin)
         self.xmaxVar.set(tempXmax)
         self.yminVar.set(tempYmin)
         self.ymaxVar.set(tempYmax)
-        self.edgeminVar.set(tempEdgemin)
-        self.edgemaxVar.set(tempEdgemax)
-        self.sigmaVar.set(tempThr)
+        self.nImagesVar.set(tempnImagesVar)
+        self.sigmaVar.set(tempSigma)
         #draw lines again        
         self.refreshCanvas()
         
@@ -543,12 +514,11 @@ class parWindow:
         tempXmax = self.xmaxVar.get()
         tempYmin = self.yminVar.get()
         tempYmax = self.ymaxVar.get()
-        tempEdgemin = self.edgeminVar.get()
-        tempEdgemax = self.edgemaxVar.get()
-        tempThr = self.sigmaVar.get()
+        tempSigma = self.sigmaVar.get()
         
-        parameterList = [tempXmin,tempXmax,tempYmin,tempYmax,tempEdgemin,tempEdgemax,tempThr]
+        parameterList = [tempXmin,tempXmax,tempYmin,tempYmax,tempSigma]
         self.analysisWindow = analysisWindow(parent = self.parent, dirName = self.dirName, parameters = parameterList )
+        
 
 
 #######################################################
@@ -575,16 +545,15 @@ class analysisWindow:
         self.xmax = self.parameterList[1]
         self.ymin = self.parameterList[2]
         self.ymax = self.parameterList[3]
-        self.edgemin = self.parameterList[4]
-        self.edgemax = self.parameterList[5]
-        self.sigma = self.parameterList[6]
+        self.sigma = self.parameterList[4]
         
         self.thisWindow = tk.Toplevel(self.parent)
         self.thisWindow.iconphoto(False, tk.PhotoImage(file='C:/Users/wnauwync/Pictures/splashingsweat.png'))
         self.thisWindow.title('dropTop analysis: ' + self.dirName)
-        self.thisWindow.geometry('1200x860')
+        self.thisWindow.geometry('917x957')
         
         
+
         #Create tkinter variables
         self.flowRateVar = tk.IntVar()
         self.specFileVar = tk.StringVar()
@@ -598,7 +567,8 @@ class analysisWindow:
         self.initGUI()
         
 
-        
+
+            
     def initGUI(self):
 
         self.plotCounter = -1
@@ -631,29 +601,16 @@ class analysisWindow:
         self.specFileEntry.grid(row = 7,column = 0)
         self.analyzeButton.grid(row = 8,column = 0)
         
-        
-        #If button 3 is selected --> remove greyed out directory entry
-        
-        #If flow rate is not empty and (one of upper two buttons is selected or
-        #if bottom radiobutton is selected and entry is entered ) Allow for analyze data button to be clicked
-        
-        
-        
         ##Parameter frame
         self.parameterFrame = tk.LabelFrame(self.thisWindow, text = "Parameters")
         self.parameterFrame.grid(row = 1, column = 0)
         #Here user can alter parameters for analysis
         #But none yet identified o necessary, so keep it empty
         #Possible: pixels per um
-        #Edge detection threshold
         #Channel detection interactivity
         #etc etc
         
         #Create variables necessary
-        
-        #self.pixPerUmVar = tk.StringVar()
-        #self.framesVar = tk.StringVar()
-        
         
         #Create elements
         
@@ -754,8 +711,6 @@ class analysisWindow:
         #replaced by averages of whole array for simplicity purposes
         
         matching = [s for s in os.listdir(self.dirName) if picBatchName in s]
-        
-        
         timeData = np.arange(len(matching))/frameRate*1000 #in milliseconds
         dropletPass = [] #function performance
     
@@ -764,55 +719,77 @@ class analysisWindow:
             dropletPass.append(self.detectEdge(image))
             
         passList = self.healVector(dropletPass)
-        print(dropletPass)
         newList = self.analyzePasses(passList)
-        #timePoints = timeData[dropletPass.index(False):dropletPass.index(False,len(dropletPass)-1)] #only select timepoins that are of importance for droplet counting
+        
         dropStartTime = timeData[newList[0]]
-        #print(dropStartTime)
-        #dropStartTime = list(np.asarray(dropStartTime) + timeStart)
         dropStopTime = timeData[newList[1]]
-        #print(dropStopTime)
-        #dropStopTime = list(np.asarray(dropStopTime) + timeStart)
-        
-        droppassTime = dropStopTime-dropStartTime
-        #interdropTime = start of second minus stop of first
-        
-        interdropTime = dropStartTime[1:len(dropStartTime)]-dropStopTime[0:len(dropStopTime)-1]
-        #add in average value for last droplet
-        interdropTime = np.append(interdropTime,statistics.mean(interdropTime))
-        
-        frequencyList = []
-        dropVolume = []
+        indexBatchList = np.repeat(indexBatch,len(dropStartTime))
         
         
-        
-        for i in np.arange(len(dropStartTime)-1):
-            frequency = 1/(dropStartTime[i+1]-dropStartTime[i])*1000
-            frequencyList.append(frequency) #from 1/ms to 1/s
-            dropVolume.append(flowRate*1e6/3600/frequency) #flowrate in uL/hr to pL/s
-        #add in average value for first droplet
-        frequencyList.insert(0,statistics.mean(frequencyList))
-        #add in average value for first droplet
-        dropVolume.insert(0,statistics.mean(dropVolume))
-        
-        indexBatchList = np.repeat(indexBatch,len(droppassTime))
-        
-        #interdroplet distance is appointed to a certain droplet in order to be able to add it to a pandas dataframe
-        #Index      dropStart       dropStop      drop size (ms)      interdroplet distance (ms)   frequency(Hz)   Droplet size (pL)
-        
-        dropData = pd.DataFrame({'index': list(indexBatchList),
-                                 'dropStart_ms': list(dropStartTime + timeStart),
-                                 'dropStop_ms': list(dropStopTime + timeStart),
+        #Catch errors caused by erroneously detected start times and stop times
+        if len(dropStartTime) != len(dropStopTime):
+            #If IndexError is detected, add in 0 Hz Frequency, 1 dropVolume,
+            #2 droppassTime, 3 interdropTime
+            frequencyList = np.zeros(len(dropStartTime))
+            dropVolume = np.ones(len(dropStartTime))
+            droppassTime = np.ones(len(dropStartTime))*2
+            interdropTime = np.ones(len(dropStartTime))*3
+            dropData = pd.DataFrame({'index': list(indexBatchList),
+                                 'dropStart_ms': list(frequencyList),
+                                 'dropStop_ms': list(frequencyList),
                                  'dropSize_ms': list(droppassTime),
                                  'dropSpace_ms': list(interdropTime),
-                                 'dropFreq_Hz': frequencyList,
-                                 'dropVol_pL': dropVolume})
-        analysisPerformance = pd.DataFrame({'time_ms': list(timeData + timeStart),
+                                 'dropFreq_Hz': list(frequencyList),
+                                 'dropVol_pL': list(dropVolume)})
+            analysisPerformance = pd.DataFrame({'time_ms': list(timeData + timeStart),
                                             'dropPass': dropletPass,
                                             'dropProc': passList})
-        
-        
-        
+
+
+        elif len(dropStartTime)>1 :
+            droppassTime = dropStopTime-dropStartTime
+            #interdropTime = start of second minus stop of first
+            
+            interdropTime = dropStartTime[1:len(dropStartTime)]-dropStopTime[0:len(dropStopTime)-1]
+            #add in average value for last droplet
+            interdropTime = np.append(interdropTime,statistics.mean(interdropTime))
+            
+            frequencyList = []
+            dropVolume = []
+            
+            
+            
+            for i in np.arange(len(dropStartTime)-1):
+                frequency = 1/(dropStartTime[i+1]-dropStartTime[i])*1000
+                frequencyList.append(frequency) #from 1/ms to 1/s
+                dropVolume.append(flowRate*1e6/3600/frequency) #flowrate in uL/hr to pL/s
+            #add in average value for first droplet
+            frequencyList.insert(0,statistics.mean(frequencyList))
+            #add in average value for first droplet
+            dropVolume.insert(0,statistics.mean(dropVolume))
+            
+    
+            
+            #interdroplet distance is appointed to a certain droplet in order to be able to add it to a pandas dataframe
+            #Index      dropStart       dropStop      drop size (ms)      interdroplet distance (ms)   frequency(Hz)   Droplet size (pL)
+            
+            dropData = pd.DataFrame({'index': list(indexBatchList),
+                                     'dropStart_ms': list(dropStartTime + timeStart),
+                                     'dropStop_ms': list(dropStopTime + timeStart),
+                                     'dropSize_ms': list(droppassTime),
+                                     'dropSpace_ms': list(interdropTime),
+                                     'dropFreq_Hz': frequencyList,
+                                     'dropVol_pL': dropVolume})
+            analysisPerformance = pd.DataFrame({'time_ms': list(timeData + timeStart),
+                                                'dropPass': dropletPass,
+                                                'dropProc': passList})
+            
+            
+        else:
+            messagebox.showerror('Error', 'Analysis failed')
+            return
+            
+            
         return {'dropData': dropData,
                 'performance': analysisPerformance}
     
@@ -826,67 +803,34 @@ class analysisWindow:
         start = passList.index(1)
         
         #[::-1] reverses a list!
-        end = len(passList)-1-passList[::-1].index(-1)
-        
-        
-        #include direct transitions between two edges but increases chance
-        #for false positive edge detection, remove this
-        
-        for i in np.arange(start,end+1,1):
+        try:
+            end = len(passList)-1-passList[::-1].index(-1)
+        except ValueError:
+            dropStart = np.arange(0,20,2)
+            dropStop = np.arange(1,20,2)
+        else:
+            #include direct transitions between two edges but increases chance
+            #for false positive edge detection, remove this
             
-            if passList[i] == 1:
-                if previousElement == 0 or previousElement == -1:
-                    dropStart.append(i)
-            if passList[i] == -1:
-                if previousElement == 0 or previousElement == 1:
-                    dropStop.append(i)
-            previousElement = passList[i]
+            for i in np.arange(start,end+1,1):
+                
+                if passList[i] == 1:
+                    if previousElement == 0 or previousElement == -1:
+                        dropStart.append(i)
+                if passList[i] == -1:
+                    if previousElement == 0 or previousElement == 1:
+                        dropStop.append(i)
+                previousElement = passList[i]
         
         return [dropStart,dropStop]
-    
-    
-    
-
-        #zeroes are important separators
-        
-        #find islands of values
-        #take into account previous island, should be inverse
-        
-        #go through vector, island is starting from more than one value that
-        #is different from zero
-        
-        #store previous island
         
         
-        
-        #store all indices of elements that are non-zero
-        #remove all one length elements
-        #look at island, they should be the inverse of previous and
-        #next island
-        
-        #find a sequence of elements in the vector that does not show any
-        #hiccups (change from 1 to -1 or vice versa, a single one, a single
-        #minus one, a single zero)
-        #use this as a template to repair vector
+    def collapseVector(self,passList):
+        #this function reduces a passList (vector of -1,0 and 1) to a description
+        #of the vector in two different vectors (ID and length)1,1,1, ==> ID [1] and length [3] 
+        #0,0,0,1,1,0,-1,-1 will be turned into ID [0,1,0,-1] and length [3,2,1,2])
         
         
-        
-        
-        #go through vector until first non-zero element is seen
-        #then, stop loop and go through the island until a different element is
-        #seen
-        #save length in list, save value in list
-        #if this element that stops the chain is != 0 and different from
-        #the current element --> change it to be equal to current island
-        #value
-        
-        
-        #reduce vector to pattern description, identify singlets and then
-        #weird transitions
-
-        
-        
-    def collapseVector(self,passList):        
         i = 0
         islandIDList = []
         islandLengthList = []
@@ -908,11 +852,12 @@ class analysisWindow:
                 islandLength = 1
         islandIDList.append(islandID)
         islandLengthList.append(islandLength)
-            #function performs ok, last row of elements are ignored
             
         return [islandIDList,islandLengthList]
 
     def extractVector(self,islandIDList,islandLengthList):
+        #this function does the inverse of extractVector, it extracts a vector
+        #from a length vector and an IDvector
         
         passList = []
         
@@ -927,21 +872,18 @@ class analysisWindow:
             return
 
     def healVector(self,passList):
-        
-
-        #while there are still pattern mistakes found, perform iterative 
-        #vector healing
+        #Problem: sometimes double start or double endings are detected in the
+        #droplet images while in reality there are none.
+        #This throws off the analysis.
+        #Here a method is introduced that fixes these false positives based 
+        #on the vector environment and predicted droplet pass pattern
         
         #iterative process: 
-           # 0)find anchor of two or more matching patterns with no singlets
-           # 1)from there, go forward until no match, perform healing (alter based on pattern prediction)
+           # 0)find anchor of three matching patterns with no singlets
+           # 1)from start of vector, go forward until no match with predicted
+           #droplet pass pattern (0,-1,0,1)perform healing (alter based on pattern prediction)
            # extractVector and collapse vector again
-           # 2) go to anchor, go forward until no match, perform healing, etc etc
-           
-           #do the same going back
-           
-           #return healedVector
-        #start from there
+           # 2) go to anchor, go forward until no match, perform healin
         
         
         resultList = self.collapseVector(passList)
@@ -949,8 +891,7 @@ class analysisWindow:
         islandLengthList = resultList[1]
         
         #0)correct singlets based on environment 
-        #(just convert to smallest island)
-        
+        #(just convert to smallest neighbouring island)
         
         for i in np.arange(1,len(islandIDList)-1):
             if islandLengthList[i] == 1:
@@ -961,17 +902,14 @@ class analysisWindow:
                     islandIDList[i] = islandIDList[i+1]
                         
         newPassList = self.extractVector(islandIDList,islandLengthList)
-        
         resultList = self.collapseVector(newPassList)
         islandIDList = resultList[0]
         islandLengthList = resultList[1]
         
         #1) find anchorpoint
         patternHeal = [0,-1,0,1] #data will always show this pattern
-
         match = False
         anchor = -1
-        
         
         while match == False and anchor < len(islandIDList)-13:
             anchor = anchor + 1
@@ -981,7 +919,8 @@ class analysisWindow:
         
         if match == False:
             messagebox.showerror('Error','Could not find an anchor point')
-        
+            
+        #start adjusting pattern
         count = 0
         #keep adjusting until pattern is complete
         for i in np.arange(1,len(islandIDList)-1):
@@ -1067,11 +1006,11 @@ class analysisWindow:
         
         self.plotCounter = self.plotCounter + 1
         
-        self.fig1 = plt.Figure(figsize = (8,2),dpi = 100)
-        self.fig2 = plt.Figure(figsize = (8,2),dpi = 100)
-        self.fig3 = plt.Figure(figsize = (8,2),dpi = 100)
-        self.fig4 = plt.Figure(figsize = (8,2),dpi = 100)
-        self.fig5 = plt.Figure(figsize = (8,2),dpi = 100)
+        self.fig1 = plt.Figure(figsize = (8,2),dpi = 90)
+        self.fig2 = plt.Figure(figsize = (8,2),dpi = 90)
+        self.fig3 = plt.Figure(figsize = (8,2),dpi = 90)
+        self.fig4 = plt.Figure(figsize = (8,2),dpi = 90)
+        self.fig5 = plt.Figure(figsize = (8,2),dpi = 90)
         
         if self.plotCounter > 0:
             self.figCanvas1.get_tk_widget().destroy()
@@ -1087,11 +1026,13 @@ class analysisWindow:
         self.figCanvas4 = FigureCanvasTkAgg(self.fig4,master = self.plotFrame)
         self.figCanvas5 = FigureCanvasTkAgg(self.fig5,master = self.plotFrame)
 
-        self.figCanvas1.get_tk_widget().pack(side = tk.TOP, fill = tk.BOTH, expand = 1)
-        self.figCanvas2.get_tk_widget().pack(side = tk.TOP, fill = tk.BOTH, expand = 1)
-        self.figCanvas3.get_tk_widget().pack(side = tk.TOP, fill = tk.BOTH, expand = 1)    
-        self.figCanvas4.get_tk_widget().pack(side = tk.TOP, fill = tk.BOTH, expand = 1)
-        self.figCanvas5.get_tk_widget().pack(side = tk.TOP, fill = tk.BOTH, expand = 1)
+        
+        self.figCanvas1.get_tk_widget().grid(row = 0,column = 0)
+        self.figCanvas2.get_tk_widget().grid(row = 1,column = 0)
+        self.figCanvas3.get_tk_widget().grid(row = 2,column = 0)
+        self.figCanvas4.get_tk_widget().grid(row = 3,column = 0)
+        self.figCanvas5.get_tk_widget().grid(row = 4,column = 0)
+        
                     
         self.ax1 = self.fig1.add_subplot(111)
         self.fig1.subplots_adjust(bottom=0.25)
@@ -1106,15 +1047,12 @@ class analysisWindow:
 
         self.ax1.set_xlabel('Time (ms)')
         self.ax1.set_ylabel('Frequency (Hz)')
-        #self.ax1.set_title('Frequency (Hz) vs time (ms)')
         
         self.ax2.set_xlabel('Time (ms)')
         self.ax2.set_ylabel('Droplet size (pL)') 
-        #self.ax2.set_title('Droplet size (pL) vs time (ms)')
 
         self.ax3.set_xlabel('Time (ms)')
         self.ax3.set_ylabel('Interdroplet spacing (ms)') 
-        #self.ax3.set_title('Interdroplet spacing (ms) vs time (ms)')
         self.ax4.set_xlabel('Time (ms)')
         self.ax4.set_ylabel('Function performance') 
 
@@ -1145,53 +1083,3 @@ root.option_add('*tearOff', tk.FALSE)
 root.resizable(1, 1)
 GUI = directorySelection(root)
 root.mainloop()
-
-
-
-
-# passList = [0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, -1, -1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, -1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, -1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, -1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, -1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, -1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, -1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0]
-
-# passList = [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-
-# passList = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-
-# passList = [-1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1]
-
-
-# # a = collapseVector(passList)[0]
-# # b = collapseVector(passList)[1]
-# # c = healVector(passList)[0]
-# d = healVector(passList)[1]
-# print(a)
-# print(b)
-# print(c)
-# print(d)
-
-#first passList multiple things are grouped together
-#try adding groups of larger length together
-#second passList is OK
-#third passList is OK
-
-
-#after adjustments --> first passList == OK
-#second passList okish, not the adjustments I would have made but ok
-
-
-
-# valueList = []
-# patternHeal = [0,-1,0,1]
-# index = patternHeal.index(b[0])-1
-
-# for i in np.arange(len(b)):
-#     index = (index + 1)%4
-#     comparison = b[i] == patternHeal[index]
-#     valueList.append(comparison)
-
-# print(valueList)
-
-
-
-
-
-
-
