@@ -34,6 +34,7 @@ import matplotlib
 from matplotlib import pyplot as plt
 from math import floor, ceil
 import statistics
+import re
 #from random import randint
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -585,7 +586,7 @@ class analysisWindow:
         self.frameRateEntry = tk.Entry(self.frameAnalysis,textvariable = self.frameRateVar)
         self.analyzeButton1 = tk.Radiobutton(self.frameAnalysis, text = 'Analyze all', value = 1, variable = self.radioButVar)
         self.analyzeButton2 = tk.Radiobutton(self.frameAnalysis, text = 'Analyze latest',value = 2, variable = self.radioButVar)
-        self.analyzeButton3 = tk.Radiobutton(self.frameAnalysis, text = 'Analyze starting from:',value = 3, variable = self.radioButVar)
+        self.analyzeButton3 = tk.Radiobutton(self.frameAnalysis, text = 'Analyze specific batches:',value = 3, variable = self.radioButVar)
         self.specFileEntry = tk.Entry(self.frameAnalysis, textvariable = self.specFileVar)
         self.analyzeButton = tk.Button(self.frameAnalysis, text = 'Analyze data',command = self.analyzeData)
         
@@ -630,7 +631,7 @@ class analysisWindow:
     def analyzeData(self):
         #check flow rate entry, if none entered --> error
         #check analyze buttons, if none selected --> error
-        self.picBatches = []
+        picBatches = []
         self.picList = os.listdir(self.dirName)
         
         if 'procImages' in self.picList:
@@ -641,10 +642,10 @@ class analysisWindow:
         dropPerformance = pd.DataFrame([])
         
         for i in self.picList:
-            self.picBatches.append(i[0:4])
+            picBatches.append(i[0:4])
         
-        self.picBatches = list(set(self.picBatches))
-        self.picBatches.sort()
+        picBatches = list(set(picBatches))
+        picBatches.sort()
         
         #check for different states of GUI entries before continuing to analysis
         
@@ -662,20 +663,48 @@ class analysisWindow:
             return
         
         if self.radioButVar.get() == 1:
-            self.picBatches = self.picBatches
+            self.picBatches = picBatches
             
         elif self.radioButVar.get() == 2:     
-            self.picBatches = [str(self.picBatches[len(self.picBatches)-1])]
+            self.picBatches = [str(picBatches[len(picBatches)-1])]
             
-            #Analyze from entry
         elif self.radioButVar.get() == 3:
-            if self.specFileVar.get() in self.picBatches:
-                self.index = self.picBatches.index(self.specFileVar.get())
-                self.picBatches = self.picBatches[self.index:len(self.picBatches)]
-                #check if empty
-            else:
-                messagebox.showerror('Error','File batch not found')
+            string = self.specFileVar.get()
+            index = []
+            entryContent = self.splitEntry(string,picBatches)
+            seps = entryContent[0]
+            files = entryContent[1]
+            if len(seps)>2:
+                messagebox.showerror('Error', 'Please enter only one of following separator signs (:,)')
                 return
+            else:
+                if ',' in seps:
+                    for i in files:
+                        if i in picBatches:
+                            index.append(picBatches.index(i))
+                        else:
+                            messagebox.showerror('Error', 'File batch not found')
+                            return
+                    
+                    self.picBatches = list(np.array(picBatches)[index])
+                    
+                    
+                    
+                elif ':' in seps:
+                    for i in files:
+                        if i in picBatches:
+                            index.append(picBatches.index(i))
+                        else:
+                            messagebox.showerror('Error', 'File batch not found')
+                            return
+                    self.picBatches = picBatches[index[0]:index[1]]
+                    
+                else:
+                    messagebox.showerror('Error', 'Please enter only one of following separator signs (:,)')
+                    return
+
+
+
         count = -1
         curData = []
         for i in self.picBatches:
@@ -703,8 +732,27 @@ class analysisWindow:
         self.plotData({'dropData': dropData,
                        'performance': dropPerformance})
         
-        
+    def splitEntry(self,string,picBatches):
+        #give all separators, transfor last to len etc
+        files = []
+        seps = []
+        string.replace(" ","")
+        entryElements = re.split('(\W)',string)
+        count = -1
+        for i in entryElements:
+            count += 1
+            print(count)
+            if count%2 == 0:
+                files.append(i)
+            else:
+                seps.append(i)
 
+        if 'last' in files:
+            index = files.index('last')
+            files[index] = picBatches[len(picBatches)-1]
+        
+        return [seps,files]
+        
         
     def dropletDetector(self,picBatchName,flowRate,frameRate,timeStart,indexBatch):
         #first element of frequency array and last element of interdroplet distance are
