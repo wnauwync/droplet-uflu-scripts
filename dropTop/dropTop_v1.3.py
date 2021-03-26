@@ -62,7 +62,8 @@ matplotlib.use('TkAgg')
 class directorySelection:
     def __init__(self,parent,*args,**kwargs):
         self.parent = parent
-        self.parent.iconphoto(False, tk.PhotoImage(file='C:/Users/wnauwync/Pictures/splashingsweat.png'))
+        #self.parent.iconphoto(False, tk.PhotoImage(file='C:/Users/wnauwync/Desktop/Repositories/droplet-uflu-scripts/dropTop/exe/splashingsweat.ico'))
+        self.parent.iconbitmap('C:/Users/wnauwync/Desktop/Repositories/droplet-uflu-scripts/dropTop/exe/splashingsweat.ico')
         self.parent.title('dropTop: directory selection')
         self.parent.geometry('400x215')
         self.dirName = ''
@@ -126,7 +127,8 @@ class parWindow:
                 
         #open new window
         self.thisWindow = tk.Toplevel(self.parent)
-        self.thisWindow.iconphoto(False, tk.PhotoImage(file='C:/Users/wnauwync/Pictures/splashingsweat.png'))
+        #self.thisWindow.iconphoto(False, tk.PhotoImage(file='C:/Users/wnauwync/Pictures/splashingsweat.png'))
+        self.thisWindow.iconbitmap('C:/Users/wnauwync/Desktop/Repositories/droplet-uflu-scripts/dropTop/exe/splashingsweat.ico')
         self.initGUI()
         
     
@@ -550,7 +552,8 @@ class analysisWindow:
         self.sigma = self.parameterList[4]
         
         self.thisWindow = tk.Toplevel(self.parent)
-        self.thisWindow.iconphoto(False, tk.PhotoImage(file='C:/Users/wnauwync/Pictures/splashingsweat.png'))
+        #self.thisWindow.iconphoto(False, tk.PhotoImage(file='C:/Users/wnauwync/Pictures/splashingsweat.png'))
+        self.thisWindow.iconbitmap('C:/Users/wnauwync/Desktop/Repositories/droplet-uflu-scripts/dropTop/exe/splashingsweat.ico')
         self.thisWindow.title('dropTop analysis: ' + self.dirName)
         self.thisWindow.geometry('917x957')
         
